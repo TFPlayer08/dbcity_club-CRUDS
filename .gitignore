@@ -1,0 +1,28 @@
+# Ignorar entornos virtuales comunes
+venv/
+cruds/Scripts/
+cruds/Lib/
+cruds/bin/
+cruds/Include/
+cruds/pyvenv.cfg
+
+# Ignorar cachés de Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Ignorar archivos de configuración del sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar VSCode config
+.vscode/
+
+# Ignorar base de datos u otros archivos generados
+*.db
+*.sqlite3
+
+# Ignorar archivos ocultos o personales
+*.log
+*.env
+
