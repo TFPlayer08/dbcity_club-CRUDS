@@ -5,9 +5,9 @@ from datetime import datetime
 def conectar_db():
     return mysql.connector.connect(
         host="localhost",
-        user="root",       
-        password="Toti#landia$7", 
-        database="dbcity_club"        
+        user="root",
+        password="Toti#landia$7",
+        database="dbcity_club"
     )
 
 def main(page: ft.Page):
@@ -15,7 +15,6 @@ def main(page: ft.Page):
     page.window_width = 640
     page.window_height = 600
     page.scroll = "auto"
-
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
 
@@ -26,6 +25,7 @@ def main(page: ft.Page):
         page.dialog = picker
         page.update()
 
+    # Controles
     titulo = ft.Text("Membresías", size=24, weight=ft.FontWeight.BOLD)
 
     txt_codigo = ft.TextField(label="Código", bgcolor=input_bg_color, width=300)
@@ -34,7 +34,7 @@ def main(page: ft.Page):
     fecha_activacion = ft.TextField(label="Fecha de Activación", read_only=True, width=300)
     dp_activacion = ft.DatePicker(
         on_change=lambda e: (
-            setattr(fecha_activacion, "value", e.control.value),
+            setattr(fecha_activacion, "value", datetime.strftime(e.control.value, "%d/%m/%Y")),
             fecha_activacion.update()
         )
     )
@@ -42,7 +42,7 @@ def main(page: ft.Page):
     fecha_vigencia = ft.TextField(label="Fecha de Vigencia", read_only=True, width=300)
     dp_vigencia = ft.DatePicker(
         on_change=lambda e: (
-            setattr(fecha_vigencia, "value", e.control.value),
+            setattr(fecha_vigencia, "value", datetime.strftime(e.control.value, "%d/%m/%Y")),
             fecha_vigencia.update()
         )
     )
@@ -58,8 +58,6 @@ def main(page: ft.Page):
         on_click=lambda _: open_picker(dp_vigencia)
     )
 
-    mensaje = ft.Text("", color="green")
-
     tipo_membresia = ft.Dropdown(
         label="Tipo de Membresía",
         width=300,
@@ -69,31 +67,54 @@ def main(page: ft.Page):
         ]
     )
 
+    id_codigo_cliente = ft.TextField(label="ID Cliente", bgcolor=input_bg_color, width=300)
+    mensaje = ft.Text("", color="green")
+
+    # --- FUNCIONES ---
+
+    def validar_campos():
+        if not all([txt_codigo.value, txt_nombre.value, fecha_activacion.value, fecha_vigencia.value, tipo_membresia.value, id_codigo_cliente.value]):
+            mensaje.value = "Todos los campos deben estar completos."
+            mensaje.color = "red"
+            page.update()
+            return False
+        if not txt_codigo.value.isdigit() or not id_codigo_cliente.value.isdigit():
+            mensaje.value = "Código e ID Cliente deben ser números enteros."
+            mensaje.color = "red"
+            page.update()
+            return False
+        return True
+
+    def parsear_fecha(fecha_str):
+        return datetime.strptime(fecha_str, "%d/%m/%Y").date()
+
     def agregar(e):
+        if not validar_campos():
+            return
         try:
             conn = conectar_db()
             cursor = conn.cursor()
             sql = """
-                INSERT INTO membresia (codigo, nombre_Credencial, fecha_activacion, fecha_vigencia, tipo_membresia)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO membresia (codigo, nombre_Credencial, fecha_activacion, fecha_vigencia, tipo_membresia, idCliente)
+                VALUES (%s, %s, %s, %s, %s, %s)
             """
             valores = (
                 txt_codigo.value,
                 txt_nombre.value,
-                fecha_activacion.value,
-                fecha_vigencia.value,
-                tipo_membresia.value
+                parsear_fecha(fecha_activacion.value),
+                parsear_fecha(fecha_vigencia.value),
+                tipo_membresia.value,
+                id_codigo_cliente.value
             )
             cursor.execute(sql, valores)
             conn.commit()
             mensaje.value = "Membresía agregada correctamente."
             mensaje.color = "green"
-            page.update()
         except Exception as ex:
             mensaje.value = f"Error: {str(ex)}"
             mensaje.color = "red"
-            page.update()
         finally:
+            page.update()
             if 'conn' in locals() and conn.is_connected():
                 cursor.close()
                 conn.close()
@@ -104,7 +125,8 @@ def main(page: ft.Page):
             ft.DataColumn(ft.Text("Nombre")),
             ft.DataColumn(ft.Text("Fecha Activación")),
             ft.DataColumn(ft.Text("Fecha Vigencia")),
-            ft.DataColumn(ft.Text("Tipo Membresía"))
+            ft.DataColumn(ft.Text("Tipo Membresía")),
+            ft.DataColumn(ft.Text("ID Cliente"))
         ],
         rows=[],
         border=ft.border.all(1, "black"),
@@ -115,8 +137,7 @@ def main(page: ft.Page):
         try:
             conn = conectar_db()
             cursor = conn.cursor()
-            sql = "SELECT codigo, nombre_Credencial, fecha_activacion, fecha_vigencia, tipo_membresia FROM membresia"
-            cursor.execute(sql)
+            cursor.execute("SELECT codigo, nombre_Credencial, fecha_activacion, fecha_vigencia, tipo_membresia, idCliente FROM membresia")
             resultados = cursor.fetchall()
             tabla_resultado.rows.clear()
 
@@ -126,31 +147,97 @@ def main(page: ft.Page):
                         cells=[
                             ft.DataCell(ft.Text(str(row[0]))),
                             ft.DataCell(ft.Text(row[1])),
-                            ft.DataCell(ft.Text(datetime.strftime(row[2], "%d/%m/%Y"))),
-                            ft.DataCell(ft.Text(datetime.strftime(row[3], "%d/%m/%Y"))),
-                            ft.DataCell(ft.Text(row[4]))
+                            ft.DataCell(ft.Text(row[2].strftime("%d/%m/%Y"))),
+                            ft.DataCell(ft.Text(row[3].strftime("%d/%m/%Y"))),
+                            ft.DataCell(ft.Text(row[4])),
+                            ft.DataCell(ft.Text(str(row[5])))
                         ]
                     )
                 )
-
             mensaje.value = f"{len(resultados)} resultados encontrados."
             mensaje.color = "green"
-            page.update()
-
         except Exception as ex:
             mensaje.value = f"Error: {str(ex)}"
             mensaje.color = "red"
-            page.update()
         finally:
+            page.update()
             if 'conn' in locals() and conn.is_connected():
                 cursor.close()
                 conn.close()
-                mensaje.update()
 
+    def eliminar(e):
+        if not txt_codigo.value.isdigit():
+            mensaje.value = "El código debe ser un número entero."
+            mensaje.color = "red"
+            page.update()
+            return
+        codigo = int(txt_codigo.value)
+        if codigo not in [int(row.cells[0].content.value) for row in tabla_resultado.rows]:
+            mensaje.value = "El código no existe en la tabla."
+            mensaje.color = "red"
+            page.update()
+            return
+        try:
+            conn = conectar_db()
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM membresia WHERE codigo = %s", (codigo,))
+            conn.commit()
+            mensaje.value = "Membresía eliminada correctamente."
+            mensaje.color = "green"
+        except Exception as ex:
+            mensaje.value = f"Error: {str(ex)}"
+            mensaje.color = "red"
+        finally:
+            page.update()
+            if 'conn' in locals() and conn.is_connected():
+                cursor.close()
+                conn.close()
+
+    def modificar(e):
+        if not validar_campos():
+            return
+        codigo = int(txt_codigo.value)
+        if codigo not in [int(row.cells[0].content.value) for row in tabla_resultado.rows]:
+            mensaje.value = "El código no existe en la tabla."
+            mensaje.color = "red"
+            page.update()
+            return
+        try:
+            conn = conectar_db()
+            cursor = conn.cursor()
+            sql = """
+                UPDATE membresia
+                SET nombre_Credencial = %s, fecha_activacion = %s, fecha_vigencia = %s, tipo_membresia = %s, idCliente = %s
+                WHERE codigo = %s
+            """
+            valores = (
+                txt_nombre.value,
+                parsear_fecha(fecha_activacion.value),
+                parsear_fecha(fecha_vigencia.value),
+                tipo_membresia.value,
+                id_codigo_cliente.value,
+                codigo
+            )
+            cursor.execute(sql, valores)
+            conn.commit()
+            mensaje.value = "Membresía modificada correctamente."
+            mensaje.color = "green"
+        except Exception as ex:
+            mensaje.value = f"Error: {str(ex)}"
+            mensaje.color = "red"
+        finally:
+            page.update()
+            if 'conn' in locals() and conn.is_connected():
+                cursor.close()
+                conn.close()
+
+    # --- Layout final ---
     fila_botones = ft.Row(
         [
             ft.ElevatedButton(text="Agregar", on_click=agregar),
             ft.ElevatedButton(text="Consultar", on_click=consultar),
+            ft.ElevatedButton(text="Eliminar", on_click=eliminar),
+            ft.ElevatedButton(text="Modificar", on_click=modificar),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=20
@@ -160,23 +247,15 @@ def main(page: ft.Page):
         controls=[tabla_resultado],
         scroll="auto",
         height=250,
-        width=640
+        width=800
     )
 
     page.add(
         ft.Column(
             [
-                titulo,
-                txt_codigo,
-                txt_nombre,
-                fecha_activacion,
-                btn_fecha_activacion,
-                fecha_vigencia,
-                btn_fecha_vigencia,
-                tipo_membresia,
-                fila_botones,
-                mensaje,
-                tabla_scrollable
+                titulo, txt_codigo, txt_nombre, fecha_activacion, btn_fecha_activacion,
+                fecha_vigencia, btn_fecha_vigencia, tipo_membresia, id_codigo_cliente,
+                fila_botones, mensaje, tabla_scrollable
             ],
             spacing=20,
             alignment=ft.MainAxisAlignment.CENTER,

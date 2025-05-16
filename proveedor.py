@@ -91,6 +91,8 @@ def main(page: ft.Page):
                     ft.DataCell(ft.Text(row[2])),
                 ]))
 
+            mensaje.value = "Consulta realizada correctamente."
+            mensaje.color = "green"
             page.update()
         except Exception as ex:
             print(f"Error: {str(ex)}")
@@ -99,10 +101,86 @@ def main(page: ft.Page):
                 cursor.close()
                 conn.close()
     
+    def eliminar(e):
+        try:
+            try:
+                id = int(txt_id_proveedor.value)
+            except ValueError:
+                mensaje.value = "El id debe ser entero."
+                mensaje.color = "red"
+                page.update()
+                return
+            if id not in [int(row.cells[0].content.value) for row in tabla_resultado.rows] or id == "":
+                mensaje.value = "El ID no existe en la tabla."
+                mensaje.color = "red"
+                page.update()
+                return
+            conn = conectar_db()
+            cursor = conn.cursor()
+            sql = "DELETE FROM proveedor WHERE idproveedor = %s"
+            valores = (txt_id_proveedor.value,)
+            cursor.execute(sql, valores)
+            conn.commit()
+            mensaje.value = "Proveedor eliminado correctamente."
+            mensaje.color = "green"
+            page.update()
+        except Exception as ex:
+            mensaje.value = f"Error: {str(ex)}"
+            mensaje.color = "red"
+            page.update()
+    
+    def modificar(e):
+        try:
+            try:
+                id = int(txt_id_proveedor.value)
+            except ValueError:
+                mensaje.value = "El id debe ser entero."
+                mensaje.color = "red"
+                page.update()
+                return
+            if id not in [int(row.cells[0].content.value) for row in tabla_resultado.rows] or id == "":
+                mensaje.value = "El ID no existe en la tabla."
+                mensaje.color = "red"
+                page.update()
+                return
+            elif txt_nombre.value == "" or txt_telefono.value == "":
+                mensaje.value = "Los campos no pueden estar vacíos."
+                mensaje.color = "red"
+                page.update()
+                return
+            conn = conectar_db()
+            cursor = conn.cursor()
+            sql = """
+                UPDATE proveedor
+                SET nombre = %s, telefono = %s
+                WHERE idproveedor = %s
+            """
+            valores = (
+                    txt_nombre.value,
+                    txt_telefono.value,
+                    txt_id_proveedor.value,
+                )
+            cursor.execute(sql, valores)
+            conn.commit()
+            mensaje.value = "Proveedor modificado correctamente."
+            mensaje.color = "green"
+            page.update()
+        except Exception as ex:
+            mensaje.value = f"Error: {str(ex)}"
+            mensaje.color = "red"
+            page.update()
+        
+        finally:
+            if 'conn' in locals() and conn.is_connected():
+                cursor.close()
+                conn.close()
+                mensaje.update()
     fila_botones = ft.Row(
         [
             ft.ElevatedButton(text="Agregar", on_click=agregar_proveedor),
             ft.ElevatedButton(text="Consultar", on_click=consultar),
+            ft.ElevatedButton(text="Eliminar", on_click=eliminar),
+            ft.ElevatedButton(text="Modificar", on_click=modificar),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=20

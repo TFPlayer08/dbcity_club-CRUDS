@@ -51,6 +51,9 @@ def main(page: ft.Page):
             conn.commit()
 
             print("Agregar unidad")
+            mensaje.value = "Unidad agregada correctamente."
+            mensaje.color = "green"
+            page.update()
         except Exception as ex:
             mensaje.value = f" Error: {str(ex)}"
             mensaje.color = "red"
@@ -101,12 +104,89 @@ def main(page: ft.Page):
                 cursor.close()
                 conn.close()
 
+    def eliminar(e):
+        try:
+            try:
+                id = int(txt_id_unidad.value)
+            except ValueError:
+                mensaje.value = "El id debe ser entero."
+                mensaje.color = "red"
+                page.update()
+                return
 
+            if id == "" or id not in [int(row.cells[0].content.value) for row in tabla_resultado.rows]:
+                mensaje.value = "El ID no existe en la tabla."
+                mensaje.color = "red"
+                page.update()
+                return
+            conn = conectar_db()
+            cursor = conn.cursor()
+            sql = """
+                DELETE FROM unidad WHERE idUnidad = %s
+                """
+            valores = (
+                    txt_id_unidad.value,
+                )
+            cursor.execute(sql, valores)
+            conn.commit()
+
+            print("Eliminar unidad")
+            mensaje.value = "Unidad eliminada correctamente."
+            mensaje.color = "green"
+            page.update()
+        except Exception as ex:
+            mensaje.value = f" Error: {str(ex)}"
+            mensaje.color = "red"
+            page.update()
+
+    def modificar(e):
+        try:
+            try:
+                id = int(txt_id_unidad.value)
+            except ValueError:
+                mensaje.value = "El id debe ser entero."
+                mensaje.color = "red"
+                page.update()
+                return
+            if id == "" or id not in [int(row.cells[0].content.value) for row in tabla_resultado.rows]:
+                mensaje.value = "El ID no existe en la tabla."
+                mensaje.color = "red"
+                page.update()
+                return
+            if txt_nombre.value == "":
+                mensaje.value = "El campo nombre no puede estar vacío."
+                mensaje.color = "red"
+                page.update()
+                return
+            conn = conectar_db()
+            cursor = conn.cursor()
+            sql = """
+                UPDATE unidad
+                SET nombre = %s
+                WHERE idUnidad = %s
+                """
+            valores = (
+                    txt_nombre.value,
+                    txt_id_unidad.value,
+                )
+            cursor.execute(sql, valores)
+            conn.commit()
+            print("Modificar unidad")
+            mensaje.value = "Unidad modificada correctamente."
+            mensaje.color = "green"
+            page.update()
+        except Exception as ex:
+            mensaje.value = f"Error: {str(ex)}"
+            mensaje.color = "red"
+            page.update()
     
     fila_botones = ft.Row(
         [
             ft.ElevatedButton(text="Agregar", on_click=agrega_metodo),
             ft.ElevatedButton(text="Consultar", on_click=consultar),
+            ft.ElevatedButton(text="Eliminar", on_click=eliminar),
+            ft.ElevatedButton(text="Modificar", on_click=modificar),
+
         ],
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=20

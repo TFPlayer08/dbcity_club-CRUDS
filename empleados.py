@@ -34,8 +34,10 @@ def main(page: ft.Page):
     txt_telefono = ft.TextField(label="Teléfono", bgcolor=input_bg_color, width=300)
 
     mensaje = ft.Text("", color="green")
+
     def agregar_empleado(e):
         try:
+            # --- Validar ID ---
             try:
                 id_empleado = int(txt_id_empleado.value)
             except ValueError:
@@ -43,8 +45,8 @@ def main(page: ft.Page):
                 mensaje.color = "red"
                 page.update()
                 return
-            
-            # Validar sueldo
+
+            # --- Validar sueldo ---
             try:
                 sueldo = float(txt_sueldo.value)
             except ValueError:
@@ -53,7 +55,7 @@ def main(page: ft.Page):
                 page.update()
                 return
 
-            # Validar edad
+            # --- Validar edad ---
             try:
                 edad = int(txt_edad.value)
             except ValueError:
@@ -62,16 +64,29 @@ def main(page: ft.Page):
                 page.update()
                 return
 
-            # Conexión y guardado
+            # --- Conexión y guardado ---
+            if id_empleado == "" or txt_nombre.value == "" or txt_apellido.value == "" or txt_puesto.value == "" or txt_sueldo.value == "" or txt_edad.value == "" or txt_telefono.value == "":
+                mensaje.value = "Los campos no pueden estar vacíos."
+                mensaje.color = "red"
+                page.update()
+                return
             conn = conectar_db()
             cursor = conn.cursor()
 
             sql = """
-            INSERT INTO empleados (idempleados, nombre, apellido, puesto, sueldo, edad, telefono)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """
+                INSERT INTO empleados
+                    (idempleados, nombre, apellido, puesto, sueldo, edad, telefono)
+                VALUES
+                    (%s, %s, %s, %s, %s, %s, %s)
+            """                              # ← ahora hay 7 %s
             valores = (
-                txt_id_empleado,txt_nombre.value, txt_apellido.value, txt_puesto.value, sueldo, edad, txt_telefono.value
+                id_empleado,                 # ← dato, no widget
+                txt_nombre.value,
+                txt_apellido.value,
+                txt_puesto.value,
+                sueldo,
+                edad,
+                txt_telefono.value,
             )
 
             cursor.execute(sql, valores)
@@ -79,20 +94,22 @@ def main(page: ft.Page):
 
             mensaje.value = "Empleado agregado exitosamente."
             mensaje.color = "green"
-            page.update()
 
             # Limpiar campos
-            for campo in [txt_id_empleado, txt_nombre, txt_apellido, txt_puesto, txt_sueldo, txt_edad, txt_telefono]:
+            for campo in [
+                txt_id_empleado, txt_nombre, txt_apellido,
+                txt_puesto, txt_sueldo, txt_edad, txt_telefono
+            ]:
                 campo.value = ""
-
         except Exception as ex:
             mensaje.value = f"Error: {str(ex)}"
             mensaje.color = "red"
-            page.update()
         finally:
+            page.update()
             if 'conn' in locals() and conn.is_connected():
                 cursor.close()
                 conn.close()
+
 
     tabla_resultado = ft.DataTable(
         columns=[
@@ -135,6 +152,8 @@ def main(page: ft.Page):
                         ]
                     )
                 )     
+            mensaje.value = f"{len(resultados)} resultados encontrados."
+            mensaje.color = "green"
             page.update()
 
         except Exception as ex:
@@ -146,6 +165,96 @@ def main(page: ft.Page):
                 cursor.close()
                 conn.close()
 
+    def eliminar_empleado(e):
+        try:
+            try:
+                id_empleado = int(txt_id_empleado.value)
+            except ValueError:
+                mensaje.value = "El ID empleado debe ser un número entero."
+                mensaje.color = "red"
+                page.update()
+                return
+            if id_empleado == "" or id_empleado is None or id_empleado not in [int(row.cells[0].content.value) for row in tabla_resultado.rows]:
+                mensaje.value = "El ID no existe en la tabla."
+                mensaje.color = "red"
+                page.update()
+                return
+            conn = conectar_db()
+            cursor = conn.cursor()
+            sql = "DELETE FROM empleados WHERE idempleados = %s"
+            valores = (id_empleado,)
+            cursor.execute(sql, valores)
+            conn.commit()
+            mensaje.value = "Empleado eliminado correctamente."
+            mensaje.color = "green"
+            page.update()
+        except Exception as ex:
+            mensaje.value = f"Error: {str(ex)}"
+            mensaje.color = "red"
+            page.update()
+    
+    def modificar_empleado(e):
+        try:
+            try:
+                id_empleado = int(txt_id_empleado.value)
+            except ValueError:
+                mensaje.value = "El ID empleado debe ser un número entero."
+                mensaje.color = "red"
+                page.update()
+                return
+            if id_empleado == "" or id_empleado is None or id_empleado not in [int(row.cells[0].content.value) for row in tabla_resultado.rows]:
+                mensaje.value = "El ID no existe en la tabla."
+                mensaje.color = "red"
+                page.update()
+                return
+            # Validar campos
+            if txt_nombre.value == "" or txt_apellido.value == "" or txt_puesto.value == "" or txt_sueldo.value == "" or txt_edad.value == "" or txt_telefono.value == "":
+                mensaje.value = "Los campos no pueden estar vacíos."
+                mensaje.color = "red"
+                page.update()
+                return
+            # Validar sueldo
+            try:
+                sueldo = float(txt_sueldo.value)
+            except ValueError:
+                mensaje.value = "El sueldo debe ser un número decimal."
+                mensaje.color = "red"
+                page.update()
+                return
+            # Validar edad
+            try:
+                edad = int(txt_edad.value)
+            except ValueError:
+                mensaje.value = "La edad debe ser un número entero."
+                mensaje.color = "red"
+                page.update()
+                return
+            conn = conectar_db()
+            cursor = conn.cursor()
+            sql = """
+                UPDATE empleados
+                SET nombre = %s, apellido = %s, puesto = %s, sueldo = %s, edad = %s, telefono = %s
+                WHERE idempleados = %s
+            """
+            valores = (
+                txt_nombre.value,
+                txt_apellido.value,
+                txt_puesto.value,
+                sueldo,
+                edad,
+                txt_telefono.value,
+                id_empleado
+            )
+            cursor.execute(sql, valores)
+            conn.commit()
+            mensaje.value = "Empleado modificado correctamente."
+            mensaje.color = "green"
+            page.update()
+        except Exception as ex:
+            mensaje.value = f"Error: {str(ex)}"
+            mensaje.color = "red"
+            page.update()
+    
     tabla_scrollable = ft.Row(
         controls=[tabla_resultado],
         scroll="auto",
@@ -156,6 +265,8 @@ def main(page: ft.Page):
         [
             ft.ElevatedButton(text="Agregar", on_click=agregar_empleado),
             ft.ElevatedButton(text="Consultar", on_click=consultar_empleados),
+            ft.ElevatedButton(text="Eliminar", on_click=eliminar_empleado),
+            ft.ElevatedButton(text="Modificar", on_click=modificar_empleado),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=20

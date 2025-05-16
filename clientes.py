@@ -14,8 +14,6 @@ def main(page: ft.Page):
     page.window_width = 640
     page.window_height = 480
     page.scroll = "auto"
-
-    # Centramos todo el contenido en la pantalla
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
 
@@ -27,10 +25,82 @@ def main(page: ft.Page):
     txt_id_cliente = ft.TextField(label="ID Cliente", bgcolor=input_bg_color, width=300)
     txt_nombre = ft.TextField(label="Nombre", bgcolor=input_bg_color, width=300)
     txt_telefono = ft.TextField(label="Teléfono", bgcolor=input_bg_color, width=300)
-    txt_codigo = ft.TextField(label="Código", bgcolor=input_bg_color, width=300)
     mensaje = ft.Text("", color="green")
 
+    tabla_resultado = ft.DataTable(
+        columns=[
+            ft.DataColumn(ft.Text("ID Cliente")),
+            ft.DataColumn(ft.Text("Nombre")),
+            ft.DataColumn(ft.Text("Teléfono"))
+        ],
+        rows=[],
+    )
+
+    def limpiar_campos():
+        txt_id_cliente.value = ""
+        txt_nombre.value = ""
+        txt_telefono.value = ""
+        page.update()
+
     def agregar(e):
+        if txt_id_cliente.value == "" or txt_nombre.value == "" or txt_telefono.value == "":
+            mensaje.value = "Los campos no pueden estar vacíos."
+            mensaje.color = "red"
+            page.update()
+            return
+        try:
+            id = int(txt_id_cliente.value)
+            conn = conectar_db()
+            cursor = conn.cursor()
+            sql = "INSERT INTO cliente (idCliente, nombre, telefono) VALUES (%s, %s, %s)"
+            valores = (id, txt_nombre.value, txt_telefono.value)
+            cursor.execute(sql, valores)
+            conn.commit()
+            mensaje.value = "Cliente agregado correctamente."
+            mensaje.color = "green"
+            limpiar_campos()
+        except Exception as ex:
+            mensaje.value = f"Error: {str(ex)}"
+            mensaje.color = "red"
+        finally:
+            if 'conn' in locals() and conn.is_connected():
+                cursor.close()
+                conn.close()
+            mensaje.update()
+
+    def consultar(e):
+        try:
+            conn = conectar_db()
+            cursor = conn.cursor()
+            sql = "SELECT idCliente, nombre, telefono FROM cliente"
+            cursor.execute(sql)
+            resultado = cursor.fetchall()
+
+            tabla_resultado.rows.clear()
+            for row in resultado:
+                tabla_resultado.rows.append(
+                    ft.DataRow(
+                        cells=[ft.DataCell(ft.Text(str(cell))) for cell in row]
+                    )
+                )
+            mensaje.value = "Consulta realizada correctamente."
+            mensaje.color = "green"
+        except Exception as ex:
+            mensaje.value = f"Error: {str(ex)}"
+            mensaje.color = "red"
+        finally:
+            if 'conn' in locals() and conn.is_connected():
+                cursor.close()
+                conn.close()
+            tabla_resultado.update()
+            mensaje.update()
+
+    def modificar(e):
+        if txt_id_cliente.value == "" or txt_nombre.value == "" or txt_telefono.value == "":
+            mensaje.value = "Los campos no pueden estar vacíos."
+            mensaje.color = "red"
+            page.update()
+            return
         try:
             try:
                 id = int(txt_id_cliente.value)
@@ -39,58 +109,56 @@ def main(page: ft.Page):
                 mensaje.color = "red"
                 page.update()
                 return
+            if id not in [int(row.cells[0].content.value) for row in tabla_resultado.rows]:
+                mensaje.value = "El ID no existe en la tabla."
+                mensaje.color = "red"
+                page.update()
+                return
             conn = conectar_db()
             cursor = conn.cursor()
-            sql = """
-                INSERT INTO cliente (idCliente, nombre, telefono, codigo)
-                VALUES (%s, %s, %s, %s)
-                """
-            valores = (
-                    txt_id_cliente.value,
-                    txt_nombre.value,
-                    txt_telefono.value,
-                    txt_codigo.value,
-                )
+            sql = "UPDATE cliente SET nombre = %s, telefono = %s WHERE idCliente = %s"
+            valores = (txt_nombre.value, txt_telefono.value, id)
             cursor.execute(sql, valores)
             conn.commit()
-            mensaje.value = "Cliente agregado correctamente."
+            mensaje.value = "Cliente modificado correctamente."
+            mensaje.color = "green"
+            limpiar_campos()
         except Exception as ex:
             mensaje.value = f"Error: {str(ex)}"
+            mensaje.color = "red"
+        finally:
+            if 'conn' in locals() and conn.is_connected():
+                cursor.close()
+                conn.close()
+            mensaje.update()
+
+    def eliminar(e):
+        if txt_id_cliente.value == "":
+            mensaje.value = "El campo ID no puede estar vacío."
             mensaje.color = "red"
             page.update()
-        finally:
-            if 'conn' in locals() and conn.is_connected():
-                cursor.close()
-                conn.close()
-    tabla_resultado = ft.DataTable(
-        columns=[
-            ft.DataColumn(ft.Text("ID Cliente")),
-            ft.DataColumn(ft.Text("Nombre")),
-            ft.DataColumn(ft.Text("Teléfono")),
-            ft.DataColumn(ft.Text("Código")),
-        ],
-        rows=[],
-    )
-    def consultar(e):
+            return
         try:
+            try:
+                id = int(txt_id_cliente.value)
+            except ValueError:
+                mensaje.value = "El id debe ser entero."
+                mensaje.color = "red"
+                page.update()
+                return
+            if id not in [int(row.cells[0].content.value) for row in tabla_resultado.rows]:
+                mensaje.value = "El ID no existe en la tabla."
+                mensaje.color = "red"
+                page.update()
+                return
             conn = conectar_db()
             cursor = conn.cursor()
-            sql = "SELECT idCliente, nombre, telefono, codigo FROM cliente"
-            cursor.execute(sql)
-            resultado = cursor.fetchall()
-
-            # Limpiar filas anteriores
-            tabla_resultado.rows.clear()
-
-            # Agregar nuevas filas
-            for row in resultado:
-                tabla_resultado.rows.append(
-                    ft.DataRow(
-                        cells=[ft.DataCell(ft.Text(str(cell))) for cell in row]
-                    )
-                )
-
-            mensaje.value = "Consulta realizada correctamente."
+            sql = "DELETE FROM cliente WHERE idCliente = %s"
+            cursor.execute(sql, (id,))
+            conn.commit()
+            mensaje.value = "Cliente eliminado correctamente."
+            mensaje.color = "green"
+            limpiar_campos()
         except Exception as ex:
             mensaje.value = f"Error: {str(ex)}"
             mensaje.color = "red"
@@ -98,20 +166,20 @@ def main(page: ft.Page):
             if 'conn' in locals() and conn.is_connected():
                 cursor.close()
                 conn.close()
-                tabla_resultado.update()
-                mensaje.update()
-    
-    
+            mensaje.update()
+
     fila_botones = ft.Row(
         [
             ft.ElevatedButton(text="Agregar", on_click=agregar),
             ft.ElevatedButton(text="Consultar", on_click=consultar),
+            ft.ElevatedButton(text="Eliminar", on_click=eliminar),
+            ft.ElevatedButton(text="Modificar", on_click=modificar),
         ],
         alignment=ft.MainAxisAlignment.CENTER,
         spacing=20
     )
-    
-    # Agregar los componentes a la interfaz
+
+    # Agregar a la interfaz
     page.add(
         ft.Column(
             [
@@ -119,14 +187,13 @@ def main(page: ft.Page):
                 txt_id_cliente,
                 txt_nombre,
                 txt_telefono,
-                txt_codigo,
                 fila_botones,
                 mensaje,
                 tabla_resultado
             ],
             spacing=20,
-            alignment=ft.MainAxisAlignment.CENTER,  
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER 
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER
         )
     )
 
