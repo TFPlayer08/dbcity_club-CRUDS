@@ -2,24 +2,14 @@ import flet as ft
 import mysql.connector
 
 # Función para conectar con la base de datos
-def conectar_db():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",       
-        password="Toti#landia$7", 
-        database="dbcity_club"        
-    )
-
-
-def main(page: ft.Page):
-    page.title = "Catálogo de Empleados"
-    page.window_width = 640
-    page.window_height = 480
-    page.scroll = "auto"
-
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
-
+def vista_empleado(page):
+    def conectar_db():
+        return mysql.connector.connect(
+            host="localhost",
+            user="root",       
+            password="Toti#landia$7", 
+            database="dbcity_club"        
+        )
     input_bg_color = "#E596CC"
 
     # Componentes
@@ -126,6 +116,7 @@ def main(page: ft.Page):
         data_row_min_height=40,
         heading_row_height=40,
         column_spacing=20,
+        expand= True
     )
     def consultar_empleados(e):
         try:
@@ -272,8 +263,7 @@ def main(page: ft.Page):
         spacing=20
     )
 
-    page.add(
-        ft.Column(
+    return ft.Column(
             [
                 titulo,
                 txt_id_empleado,
@@ -289,8 +279,6 @@ def main(page: ft.Page):
             ],
             spacing=20,
             alignment=ft.MainAxisAlignment.CENTER,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll= ft.ScrollMode.ALWAYS
         )
-    )
-
-ft.app(target=main)

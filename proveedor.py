@@ -1,28 +1,17 @@
 import flet as ft
 import mysql.connector
 
-def conectar_db():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",       
-        password="Toti#landia$7", 
-        database="dbcity_club"        
-    )
-def main(page: ft.Page):
-    page.title = "Catálogo de Proveedores"
-    page.window_width = 640
-    page.window_height = 480
-    page.scroll = "auto"
 
-    # Centramos todo el contenido en la pantalla
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
-
+def vista_proveedor(page):
+    def conectar_db():
+        return mysql.connector.connect(
+            host="localhost",
+            user="root",       
+            password="Toti#landia$7", 
+            database="dbcity_club"        
+        )
     input_bg_color = "#E596CC"
-
     # Componentes
-    titulo = ft.Text("Proveedores", size=24, weight=ft.FontWeight.BOLD)
-
     txt_id_proveedor = ft.TextField(label="ID Proveedor", bgcolor=input_bg_color, width=300)
     txt_nombre = ft.TextField(label="Nombre", bgcolor=input_bg_color, width=300)
     txt_telefono = ft.TextField(label="Teléfono", bgcolor=input_bg_color, width=300)
@@ -69,8 +58,13 @@ def main(page: ft.Page):
             ft.DataColumn(ft.Text("Teléfono")),
         ],
         rows=[],
-        width=500,
-        height=200,
+    )
+
+    tabla_scrollable = ft.Column(
+        [tabla_resultado],
+        scroll=ft.ScrollMode.ADAPTIVE,
+        height=300,
+        expand=True
     )
     def consultar(e):
         try:
@@ -187,21 +181,23 @@ def main(page: ft.Page):
     )
     
     # Agregar los componentes a la interfaz
-    page.add(
-        ft.Column(
-            [
-                titulo,
-                txt_id_proveedor,
-                txt_nombre,
-                txt_telefono,
-                fila_botones,
-                mensaje,
-                tabla_resultado
-            ],
-            spacing=20,
-            alignment=ft.MainAxisAlignment.CENTER,  
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER 
-        )
+    return ft.Column(
+        [
+            ft.Text("Gestión de Proveedores", size=24, weight=ft.FontWeight.BOLD),
+            txt_id_proveedor,
+            txt_nombre,
+            txt_telefono,
+            fila_botones,
+            mensaje,
+            tabla_scrollable
+        ],
+        spacing=20,
+        alignment=ft.MainAxisAlignment.CENTER,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        expand=True
+        #scroll = ft.ScrollMode.ALWAYS
     )
 
-ft.app(target=main)
+    
+    
+    

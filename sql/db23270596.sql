@@ -162,7 +162,6 @@ CREATE TABLE IF NOT EXISTS `dbcity_club`.`ventas` (
   `fecha` DATE NOT NULL,
   `importe` FLOAT NOT NULL,
   `idCliente` INT NOT NULL,
-  `codigo` CHAR(13) NOT NULL,
   `idempleados` INT NOT NULL,
   `idmetodo_pago` INT NOT NULL,
   PRIMARY KEY (`idventas`),

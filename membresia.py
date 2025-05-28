@@ -2,22 +2,16 @@ import flet as ft
 import mysql.connector
 from datetime import datetime
 
-def conectar_db():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Toti#landia$7",
-        database="dbcity_club"
-    )
 
-def main(page: ft.Page):
-    page.title = "Catálogo de Membresías"
-    page.window_width = 640
-    page.window_height = 600
-    page.scroll = "auto"
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
 
+def vista_membresias(page):
+    def conectar_db():
+        return mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="Toti#landia$7",
+            database="dbcity_club"
+        )
     input_bg_color = "#E596CC"
 
     def open_picker(picker):
@@ -250,8 +244,8 @@ def main(page: ft.Page):
         width=800
     )
 
-    page.add(
-        ft.Column(
+ 
+    return ft.Column(
             [
                 titulo, txt_codigo, txt_nombre, fecha_activacion, btn_fecha_activacion,
                 fecha_vigencia, btn_fecha_vigencia, tipo_membresia, id_codigo_cliente,
@@ -260,7 +254,7 @@ def main(page: ft.Page):
             spacing=20,
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll = ft.ScrollMode.ALWAYS
         )
-    )
 
-ft.app(target=main)
+

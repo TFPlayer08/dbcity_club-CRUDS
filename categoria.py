@@ -1,24 +1,16 @@
 import flet as ft
 import mysql.connector
 
-def conectar_db():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",       
-        password="Toti#landia$7", 
-        database="dbcity_club"        
-    )
 
-def main(page: ft.Page):
-    page.title = "Catálogo de Categorias"
-    page.window_width = 640
-    page.window_height = 480
-    page.scroll = "auto"
-
-    # Centramos todo el contenido en la pantalla
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
-
+def vista_categoria(page):
+    
+    def conectar_db():
+        return mysql.connector.connect(
+            host="localhost",
+            user="root",       
+            password="Toti#landia$7", 
+            database="dbcity_club"        
+        )
     input_bg_color = "#E596CC"
 
     # Componentes
@@ -74,6 +66,12 @@ def main(page: ft.Page):
         rows=[],
         width=600,
         height=200,
+    )
+    tabla_scroballe = ft.Column(
+        [tabla_resultado],
+        scroll=ft.ScrollMode.ADAPTIVE, 
+        height=250, # Define una altura fija para el área visible de la tabla
+        expand=True 
     )
     def consultar(e):
         try:
@@ -186,20 +184,17 @@ def main(page: ft.Page):
     )
     
     # Agregar los componentes a la interfaz
-    page.add(
-        ft.Column(
+    return ft.Column(
             [
                 titulo,
                 txt_id_categorias,
                 txt_nombre,
                 fila_botones,
                 mensaje,
-                tabla_resultado,
+                tabla_scroballe
             ],
             spacing=20,
             alignment=ft.MainAxisAlignment.CENTER,  
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER 
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            expand= True
         )
-    )
-
-ft.app(target=main)

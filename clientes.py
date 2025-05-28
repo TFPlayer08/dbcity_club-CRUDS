@@ -1,26 +1,8 @@
 import flet as ft
 import mysql.connector
 
-def conectar_db():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",       
-        password="Toti#landia$7", 
-        database="dbcity_club"        
-    )
-
-def main(page: ft.Page):
-    page.title = "Catálogo de Clientes"
-    page.window_width = 640
-    page.window_height = 480
-    page.scroll = "auto"
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
-
+def vista_clientes(page):
     input_bg_color = "#E596CC"
-
-    # Componentes
-    titulo = ft.Text("Clientes", size=24, weight=ft.FontWeight.BOLD)
 
     txt_id_cliente = ft.TextField(label="ID Cliente", bgcolor=input_bg_color, width=300)
     txt_nombre = ft.TextField(label="Nombre", bgcolor=input_bg_color, width=300)
@@ -34,13 +16,28 @@ def main(page: ft.Page):
             ft.DataColumn(ft.Text("Teléfono"))
         ],
         rows=[],
+        expand=True
     )
+    tabla_scrollable = ft.Column(
+        [tabla_resultado],
+        scroll=ft.ScrollMode.ADAPTIVE,
+        height=300,
+        expand=True
+    )
+
+
+    def conectar_db():
+        return mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="Toti#landia$7",
+            database="dbcity_club"
+        )
 
     def limpiar_campos():
         txt_id_cliente.value = ""
         txt_nombre.value = ""
         txt_telefono.value = ""
-        page.update()
 
     def agregar(e):
         if txt_id_cliente.value == "" or txt_nombre.value == "" or txt_telefono.value == "":
@@ -66,14 +63,13 @@ def main(page: ft.Page):
             if 'conn' in locals() and conn.is_connected():
                 cursor.close()
                 conn.close()
-            mensaje.update()
+            page.update()
 
     def consultar(e):
         try:
             conn = conectar_db()
             cursor = conn.cursor()
-            sql = "SELECT idCliente, nombre, telefono FROM cliente"
-            cursor.execute(sql)
+            cursor.execute("SELECT idCliente, nombre, telefono FROM cliente")
             resultado = cursor.fetchall()
 
             tabla_resultado.rows.clear()
@@ -92,8 +88,7 @@ def main(page: ft.Page):
             if 'conn' in locals() and conn.is_connected():
                 cursor.close()
                 conn.close()
-            tabla_resultado.update()
-            mensaje.update()
+            page.update()
 
     def modificar(e):
         if txt_id_cliente.value == "" or txt_nombre.value == "" or txt_telefono.value == "":
@@ -102,14 +97,9 @@ def main(page: ft.Page):
             page.update()
             return
         try:
-            try:
-                id = int(txt_id_cliente.value)
-            except ValueError:
-                mensaje.value = "El id debe ser entero."
-                mensaje.color = "red"
-                page.update()
-                return
-            if id not in [int(row.cells[0].content.value) for row in tabla_resultado.rows]:
+            id = int(txt_id_cliente.value)
+            ids_tabla = [int(row.cells[0].content.value) for row in tabla_resultado.rows]
+            if id not in ids_tabla:
                 mensaje.value = "El ID no existe en la tabla."
                 mensaje.color = "red"
                 page.update()
@@ -123,6 +113,9 @@ def main(page: ft.Page):
             mensaje.value = "Cliente modificado correctamente."
             mensaje.color = "green"
             limpiar_campos()
+        except ValueError:
+            mensaje.value = "El id debe ser entero."
+            mensaje.color = "red"
         except Exception as ex:
             mensaje.value = f"Error: {str(ex)}"
             mensaje.color = "red"
@@ -130,7 +123,7 @@ def main(page: ft.Page):
             if 'conn' in locals() and conn.is_connected():
                 cursor.close()
                 conn.close()
-            mensaje.update()
+            page.update()
 
     def eliminar(e):
         if txt_id_cliente.value == "":
@@ -139,14 +132,9 @@ def main(page: ft.Page):
             page.update()
             return
         try:
-            try:
-                id = int(txt_id_cliente.value)
-            except ValueError:
-                mensaje.value = "El id debe ser entero."
-                mensaje.color = "red"
-                page.update()
-                return
-            if id not in [int(row.cells[0].content.value) for row in tabla_resultado.rows]:
+            id = int(txt_id_cliente.value)
+            ids_tabla = [int(row.cells[0].content.value) for row in tabla_resultado.rows]
+            if id not in ids_tabla:
                 mensaje.value = "El ID no existe en la tabla."
                 mensaje.color = "red"
                 page.update()
@@ -159,6 +147,9 @@ def main(page: ft.Page):
             mensaje.value = "Cliente eliminado correctamente."
             mensaje.color = "green"
             limpiar_campos()
+        except ValueError:
+            mensaje.value = "El id debe ser entero."
+            mensaje.color = "red"
         except Exception as ex:
             mensaje.value = f"Error: {str(ex)}"
             mensaje.color = "red"
@@ -166,7 +157,7 @@ def main(page: ft.Page):
             if 'conn' in locals() and conn.is_connected():
                 cursor.close()
                 conn.close()
-            mensaje.update()
+            page.update()
 
     fila_botones = ft.Row(
         [
@@ -179,22 +170,17 @@ def main(page: ft.Page):
         spacing=20
     )
 
-    # Agregar a la interfaz
-    page.add(
-        ft.Column(
-            [
-                titulo,
-                txt_id_cliente,
-                txt_nombre,
-                txt_telefono,
-                fila_botones,
-                mensaje,
-                tabla_resultado
-            ],
-            spacing=20,
-            alignment=ft.MainAxisAlignment.CENTER,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER
-        )
+    return ft.Column(
+        [
+            ft.Text("Catálogo de Clientes", size=24, weight=ft.FontWeight.BOLD),
+            txt_id_cliente,
+            txt_nombre,
+            txt_telefono,
+            fila_botones,
+            mensaje,
+            tabla_scrollable
+        ],
+        spacing=20,
+        alignment=ft.MainAxisAlignment.CENTER,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER
     )
-
-ft.app(target=main)
