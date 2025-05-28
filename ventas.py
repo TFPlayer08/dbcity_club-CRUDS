@@ -9,7 +9,7 @@ def vista_ventas(page: ft.Page):
             return mysql.connector.connect(
                 host="localhost",
                 user="root",
-                password="Toti#landia$7", # Asegúrate de que esta sea tu contraseña correcta
+                password="Toti#landia$7",
                 database="dbcity_club"
             )
         except mysql.connector.Error as err:
@@ -20,12 +20,8 @@ def vista_ventas(page: ft.Page):
 
     input_bg_color = "#E596CC"
     
-    # --- Variables de estado de la venta ---
-    # Store the currently fetched product's details for subtotal calculation
     current_product_details = {} 
     
-    # Lista para almacenar los detalles de los productos en la venta actual
-    # Cada elemento será un diccionario con: {codigo, nombre, cantidad, precio_unitario, subtotal}
     productos_en_venta = [] 
 
     # --- Componentes de la UI (Declaración adelantada para referenciarlos en funciones) ---
@@ -63,7 +59,6 @@ def vista_ventas(page: ft.Page):
     lbl_total_venta = ft.Text("Total de Venta: $0.00", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
     mensaje = ft.Text("", color="green", size=16)
 
-    # Buttons for product actions (también declarados para poder habilitar/deshabilitar)
     btn_buscar_producto = ft.ElevatedButton(
         text="Buscar",
         icon=ft.Icons.SEARCH, 
@@ -87,7 +82,6 @@ def vista_ventas(page: ft.Page):
     # Definir las funciones de lógica ANTES de asignarlas a los eventos de los componentes UI
 
     def toggle_sale_buttons():
-        """Habilita/deshabilita los botones de producto y finalizar venta basándose en el ID Venta."""
         is_id_venta_entered = bool(txt_id_ventas.value)
         btn_buscar_producto.disabled = not is_id_venta_entered
         btn_agregar_producto.disabled = not is_id_venta_entered
@@ -97,7 +91,6 @@ def vista_ventas(page: ft.Page):
         page.update()
 
     def limpiar_campos_producto():
-        """Limpia los campos de entrada de producto y las etiquetas de visualización."""
         txt_codigo_articulo.value = ""
         txt_cantidad.value = ""
         lbl_nombre_producto.value = "Producto: "
@@ -108,7 +101,6 @@ def vista_ventas(page: ft.Page):
         page.update()
 
     def _on_load_view():
-        """Inicializa la vista cuando se carga o se reinicia."""
         txt_fecha_venta.value = datetime.date.today().strftime("%Y-%m-%d")
         lbl_total_venta.value = "Total de Venta: $0.00"
         limpiar_campos_producto()
@@ -116,12 +108,10 @@ def vista_ventas(page: ft.Page):
         tabla_productos_venta.rows.clear()
         mensaje.value = ""
         current_product_details.clear() # Limpiar detalles del producto
-        # Asegurarse de que los botones estén inicialmente deshabilitados si no hay ID de Venta
         toggle_sale_buttons() 
         page.update()
 
     def limpiar_campos_venta():
-        """Limpia todos los campos principales de venta y reinicia los detalles del producto."""
         txt_id_ventas.value = ""
         txt_id_cliente.value = ""
         txt_id_empleado.value = ""
@@ -132,13 +122,11 @@ def vista_ventas(page: ft.Page):
         page.update()
 
     def calcular_total_venta():
-        """Calcula y actualiza el monto total de la venta."""
         total = sum(item['subtotal'] for item in productos_en_venta)
         lbl_total_venta.value = f"Total de Venta: ${total:.2f}"
         page.update()
 
     def _on_cantidad_change(e):
-        """Actualiza el subtotal del producto cuando cambia la entrada de cantidad."""
         try:
             cantidad = int(txt_cantidad.value) if txt_cantidad.value else 0
             if current_product_details and current_product_details.get('precio'):
@@ -151,10 +139,6 @@ def vista_ventas(page: ft.Page):
         page.update()
 
     def buscar_producto_por_codigo(e, update_subtotal=False):
-        """
-        Busca un producto por código de barras y actualiza las etiquetas de información.
-        Si `update_subtotal` es True, también intenta calcular el subtotal.
-        """
         codigo = txt_codigo_articulo.value
         if not codigo:
             lbl_nombre_producto.value = "Producto: "
@@ -183,13 +167,13 @@ def vista_ventas(page: ft.Page):
                 
                 # Almacenar detalles recuperados para uso futuro (ej. cálculo de subtotal)
                 current_product_details.update({
-                    'codigo': articulo['codigo_articulo'], # Usar 'codigo' como clave para el código de artículo
+                    'codigo': articulo['codigo_articulo'], 
                     'nombre': articulo['nombre'],
                     'precio': articulo['precio'],
                     'existencia': articulo['existencia']
                 })
 
-                if update_subtotal: # Solo actualizar subtotal si se solicita explícitamente o al cambiar la cantidad
+                if update_subtotal: 
                     _on_cantidad_change(None) # Recalcular subtotal basándose en la cantidad actual
             else:
                 lbl_nombre_producto.value = "Producto: No encontrado"
@@ -243,8 +227,6 @@ def vista_ventas(page: ft.Page):
             mensaje.color = "red"
             page.update()
             return
-        
-        # Usar current_product_details si está disponible, de lo contrario buscar de nuevo
         articulo_info = current_product_details
         if not articulo_info or articulo_info.get('codigo') != codigo:
             # Si los detalles no están actualizados o no coinciden, volver a buscarlos
@@ -263,15 +245,12 @@ def vista_ventas(page: ft.Page):
                 mensaje.color = "red"
                 page.update()
                 return
-            
-            # Si se encontró en la DB, actualizar articulo_info para usarlo en esta adición
             articulo_info = {
                 'codigo': articulo_info_from_db['codigo_articulo'],
                 'nombre': articulo_info_from_db['nombre'],
                 'precio': articulo_info_from_db['precio'],
                 'existencia': articulo_info_from_db['existencia']
             }
-            # Opcional: Actualizar current_product_details aquí también si quieres mantenerlo sincronizado
             current_product_details.update(articulo_info)
 
 
@@ -283,8 +262,6 @@ def vista_ventas(page: ft.Page):
             return
 
         subtotal_item = cantidad * articulo_info['precio']
-        
-        # Comprobar si el producto ya está en la lista de venta y actualizar cantidad/subtotal
         producto_existente = next((p for p in productos_en_venta if p['codigo'] == codigo), None)
 
         if producto_existente:
@@ -298,7 +275,7 @@ def vista_ventas(page: ft.Page):
             producto_existente['subtotal'] = nueva_cantidad * articulo_info['precio']
         else:
             productos_en_venta.append({
-                'codigo': articulo_info['codigo'], # ¡CORREGIDO AQUÍ! Usar la clave 'codigo'
+                'codigo': articulo_info['codigo'],
                 'nombre': articulo_info['nombre'],
                 'cantidad': cantidad,
                 'precio_unitario': articulo_info['precio'],
@@ -458,14 +435,9 @@ def vista_ventas(page: ft.Page):
         expand=True,
     )
 
-    # Se llama a _on_load_view cuando la vista se carga inicialmente
     def on_view_change_handler(e):
         if e.route == "/ventas":
-            _on_load_view()
-        # Puedes añadir lógica para limpiar/guardar el estado si sales de la vista
-        # else:
-        #     pass 
-            
+            _on_load_view()      
     page.on_view_change = on_view_change_handler
     
     # --- Diseño de la UI ---
