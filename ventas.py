@@ -161,7 +161,6 @@ def vista_ventas(page: ft.Page):
                 conn.close()
 
     def buscar_cliente(e):
-        """Busca un cliente por ID y muestra su información"""
         id_cliente = txt_id_cliente.value
         if not id_cliente:
             mensaje.value = "Ingresa un ID de cliente"
@@ -231,7 +230,6 @@ def vista_ventas(page: ft.Page):
             page.update()
 
     def limpiar_info_cliente():
-        """Limpia la información del cliente mostrada"""
         lbl_nombre_cliente.value = "Nombre: "
         lbl_telefono_cliente.value = "Teléfono: "
         lbl_membresia_cliente.value = "Membresía: "
@@ -239,7 +237,6 @@ def vista_ventas(page: ft.Page):
         cliente_info.clear()
 
     def limpiar_campos_producto():
-        """Limpia los campos de entrada de producto y las etiquetas de visualización."""
         txt_codigo_articulo.value = ""
         txt_cantidad.value = "1"  # Resetear a 1 en lugar de vacío
         lbl_nombre_producto.value = "Producto: "
@@ -250,7 +247,6 @@ def vista_ventas(page: ft.Page):
         page.update()
 
     def _on_load_view():
-        """Inicializa la vista cuando se carga o se reinicia."""
         lbl_total_venta.value = "Total de Venta: $0.00"
         limpiar_campos_producto()
         limpiar_info_cliente()
@@ -265,17 +261,14 @@ def vista_ventas(page: ft.Page):
         page.update()
 
     def limpiar_campos_venta():
-        """Limpia todos los campos principales de venta y reinicia los detalles del producto."""
         _on_load_view()
 
     def calcular_total_venta():
-        """Calcula y actualiza el monto total de la venta."""
         total = sum(item['subtotal'] for item in productos_en_venta)
         lbl_total_venta.value = f"Total de Venta: ${total:.2f}"
         page.update()
 
     def _on_cantidad_change(e):
-        """Actualiza el subtotal del producto cuando cambia la entrada de cantidad."""
         try:
             cantidad = int(txt_cantidad.value) if txt_cantidad.value else 0
             if current_product_details and current_product_details.get('precio'):
@@ -288,7 +281,6 @@ def vista_ventas(page: ft.Page):
         page.update()
 
     def buscar_producto_por_codigo(e, update_subtotal=False):
-        """Busca un producto por código de barras y actualiza las etiquetas de información."""
         codigo = txt_codigo_articulo.value
         if not codigo:
             lbl_nombre_producto.value = "Producto: "
@@ -348,7 +340,6 @@ def vista_ventas(page: ft.Page):
                 conn.close()
 
     def agregar_producto_a_venta(e):
-        """Añade un producto a la lista de la venta y actualiza la UI."""
         if not txt_id_cliente.value:
             mensaje.value = "Primero ingresa el ID del Cliente."
             mensaje.color = "red"
@@ -440,7 +431,6 @@ def vista_ventas(page: ft.Page):
         page.update()
 
     def eliminar_producto_de_venta(e):
-        """Elimina un producto de la lista de la venta."""
         codigo_a_eliminar = e.control.data
         initial_len = len(productos_en_venta)
         productos_en_venta[:] = [p for p in productos_en_venta if p['codigo'] != codigo_a_eliminar]
@@ -456,7 +446,6 @@ def vista_ventas(page: ft.Page):
         page.update()
 
     def actualizar_tabla_productos_venta():
-        """Actualiza la tabla de datos con los productos actuales en venta."""
         tabla_productos_venta.rows.clear()
         for item in productos_en_venta:
             tabla_productos_venta.rows.append(
@@ -480,7 +469,6 @@ def vista_ventas(page: ft.Page):
         page.update()
 
     def finalizar_venta(e):
-        """Finaliza la venta, guarda en la DB y limpia la vista."""
         id_cliente = txt_id_cliente.value
         id_empleado = txt_id_empleado.value
         metodo_pago_id = dd_metodo_pago.value
