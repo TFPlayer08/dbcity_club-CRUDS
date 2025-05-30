@@ -14,6 +14,33 @@ def vista_descventas(page: ft.Page):
     # --- Componentes de la UI ---
     mensaje = ft.Text("", color=ft.Colors.GREEN_500, size=16)
 
+    # Controles de fecha
+    fecha_inicio = ft.TextField(
+        label="Fecha Inicio",
+        hint_text="DD/MM/YYYY",
+        width=150,
+        keyboard_type=ft.KeyboardType.NUMBER
+    )
+    
+    fecha_fin = ft.TextField(
+        label="Fecha Fin",
+        hint_text="DD/MM/YYYY",
+        width=150,
+        keyboard_type=ft.KeyboardType.NUMBER
+    )
+    
+    btn_buscar = ft.ElevatedButton(
+        "Buscar",
+        icon=ft.Icons.SEARCH,
+        on_click=lambda e: cargar_ventas()
+    )
+    
+    btn_limpiar = ft.OutlinedButton(
+        "Limpiar Filtros",
+        icon=ft.Icons.CLEAR,
+        on_click=lambda e: limpiar_filtros()
+    )
+
     # Tabla de resumen de ventas
     tabla_ventas_resumen = ft.DataTable(
         columns=[
@@ -52,6 +79,21 @@ def vista_descventas(page: ft.Page):
     )
 
     # Contenedores
+    contenedor_filtros = ft.Container(
+        content=ft.Row(
+            [
+                fecha_inicio,
+                fecha_fin,
+                btn_buscar,
+                btn_limpiar
+            ],
+            alignment=ft.MainAxisAlignment.START,
+            spacing=20
+        ),
+        padding=10,
+        border_radius=10
+    )
+
     contenedor_tabla_ventas = ft.Container(
         content=ft.Column(
             [tabla_ventas_resumen],
@@ -76,15 +118,28 @@ def vista_descventas(page: ft.Page):
     )
 
     # --- Funciones de Lógica ---
+    def limpiar_filtros():
+        fecha_inicio.value = ""
+        fecha_fin.value = ""
+        cargar_ventas()
+        page.update()
+
+    def validar_fecha(fecha_str):
+        try:
+            return datetime.strptime(fecha_str, "%d/%m/%Y").date()
+        except ValueError:
+            return None
+
     def cargar_ventas(e=None):
         try:
             conn = conectar_db()
             cursor = conn.cursor(dictionary=True)
-            query = """
+            
+            # Construir la consulta con filtros
+            query_base = """
                 SELECT 
                     v.idVentas, 
-                    DATE_FORMAT(v.fecha, '%d/%m/
-                    %Y') as fecha_formateada,
+                    DATE_FORMAT(v.fecha, '%d/%m/%Y') as fecha_formateada,
                     v.importe, 
                     COALESCE(c.nombre, 'N/A') as cliente,
                     COALESCE(e.nombre, 'N/A') as empleado,
@@ -93,9 +148,42 @@ def vista_descventas(page: ft.Page):
                 LEFT JOIN Cliente c ON v.idCliente = c.idCliente
                 LEFT JOIN empleados e ON v.idempleados = e.idempleados
                 LEFT JOIN metodo_pago mp ON v.idmetodo_pago = mp.idmetodo_pago
-                ORDER BY v.fecha DESC
             """
-            cursor.execute(query)
+            
+            condiciones = []
+            parametros = []
+            
+            # Validar y agregar filtro de fecha inicio
+            if fecha_inicio.value:
+                fecha_ini = validar_fecha(fecha_inicio.value)
+                if fecha_ini:
+                    condiciones.append("v.fecha >= %s")
+                    parametros.append(fecha_ini)
+                else:
+                    mensaje.value = "Formato de fecha inicio inválido (DD/MM/YYYY)"
+                    mensaje.color = ft.Colors.RED
+                    page.update()
+                    return
+            
+            # Validar y agregar filtro de fecha fin
+            if fecha_fin.value:
+                fecha_f = validar_fecha(fecha_fin.value)
+                if fecha_f:
+                    condiciones.append("v.fecha <= %s")
+                    parametros.append(fecha_f)
+                else:
+                    mensaje.value = "Formato de fecha fin inválido (DD/MM/YYYY)"
+                    mensaje.color = ft.Colors.RED
+                    page.update()
+                    return
+            
+            # Construir consulta final
+            if condiciones:
+                query_base += " WHERE " + " AND ".join(condiciones)
+            
+            query_base += " ORDER BY v.fecha DESC"
+            
+            cursor.execute(query_base, parametros)
             ventas = cursor.fetchall()
 
             tabla_ventas_resumen.rows.clear()
@@ -114,7 +202,7 @@ def vista_descventas(page: ft.Page):
                     )
                 )
             
-            mensaje.value = f"Cargadas {len(ventas)} ventas"
+            mensaje.value = f"Cargadas {len(ventas)} ventas" + (" (filtradas)" if condiciones else "")
             mensaje.color = ft.Colors.GREEN
             
         except mysql.connector.Error as err:
@@ -134,13 +222,13 @@ def vista_descventas(page: ft.Page):
             conn = conectar_db()
             cursor = conn.cursor(dictionary=True)
             
-            # Consulta para obtener el detalle de la venta
+            # Consulta modificada para obtener el precio desde descventa
             query = """
                 SELECT 
                     d.codigo_articulo,
                     a.nombre as nombre_articulo,
                     d.cantidad,
-                    a.precio as precio_unitario,
+                    d.precio as precio_unitario,  -- Ahora obtenemos el precio desde descventa
                     d.total as subtotal
                 FROM descventa d
                 JOIN Articulo a ON d.codigo_articulo = a.codigo_articulo
@@ -190,11 +278,10 @@ def vista_descventas(page: ft.Page):
         [
             ft.Text("Consulta de Ventas", size=24, weight=ft.FontWeight.BOLD),
             ft.Divider(),
+            contenedor_filtros,
             mensaje,
             contenedor_tabla_ventas,
             contenedor_tabla_detalle,
         ],
-        spacing=20,
-        expand=True,
-        scroll=ft.ScrollMode.ADAPTIVE
+        spacing=20
     )

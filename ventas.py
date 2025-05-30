@@ -20,25 +20,65 @@ def vista_ventas(page: ft.Page):
 
     input_bg_color = "#E596CC"
     
+    # Variables de estado
     current_product_details = {} 
-    
     productos_en_venta = [] 
+    metodos_pago = []
+    cliente_info = {}
 
-    # --- Componentes de la UI (Declaración adelantada para referenciarlos en funciones) ---
-    txt_id_ventas = ft.TextField(label="ID Venta", bgcolor=input_bg_color, width=150)
-    txt_fecha_venta = ft.TextField(label="Fecha Venta", bgcolor=input_bg_color, width=200, disabled=True)
-    txt_id_cliente = ft.TextField(label="ID Cliente", bgcolor=input_bg_color, width=150)
-    txt_id_empleado = ft.TextField(label="ID Empleado", bgcolor=input_bg_color, width=150)
-    txt_id_metodo_pago = ft.TextField(label="ID Método Pago", bgcolor=input_bg_color, width=150)
+    # --- Componentes de la UI ---
+    # Campo para ID Cliente con búsqueda
+    txt_id_cliente = ft.TextField(
+        label="ID Cliente", 
+        bgcolor=input_bg_color, 
+        width=150,
+        input_filter=ft.InputFilter(allow=True, regex_string=r"^[0-9]*$", replacement_string="")
+    )
     
-    txt_codigo_articulo = ft.TextField(label="Código de Barras Artículo", bgcolor=input_bg_color, width=250)
-    txt_cantidad = ft.TextField(label="Cantidad", bgcolor=input_bg_color, width=100)
+    # Información del cliente
+    lbl_nombre_cliente = ft.Text("Nombre: ", size=16)
+    lbl_telefono_cliente = ft.Text("Teléfono: ", size=16)
+    lbl_membresia_cliente = ft.Text("Membresía: ", size=16)
+    lbl_tipo_membresia = ft.Text("Tipo: ", size=16)
     
+    # Dropdown para método de pago
+    dd_metodo_pago = ft.Dropdown(
+        label="Método de Pago",
+        bgcolor=input_bg_color,
+        width=250,
+        options=[],
+        autofocus=True
+    )
+    
+    txt_id_empleado = ft.TextField(
+        label="ID Empleado", 
+        bgcolor=input_bg_color, 
+        width=150,
+        input_filter=ft.InputFilter(allow=True, regex_string=r"^[0-9]*$", replacement_string="")
+    )
+    
+    # Campos para productos
+    txt_codigo_articulo = ft.TextField(
+        label="Código de Barras Artículo", 
+        bgcolor=input_bg_color, 
+        width=250,
+        autofocus=True
+    )
+    txt_cantidad = ft.TextField(
+        label="Cantidad", 
+        bgcolor=input_bg_color, 
+        width=100,
+        input_filter=ft.InputFilter(allow=True, regex_string=r"^[0-9]*$", replacement_string=""),
+        value="1"  # Valor por defecto
+    )
+    
+    # Etiquetas de información del producto
     lbl_nombre_producto = ft.Text("Producto: ", size=16, weight=ft.FontWeight.BOLD)
     lbl_precio_unitario = ft.Text("Precio Unitario: $0.00", size=16, weight=ft.FontWeight.BOLD)
     lbl_stock_disponible = ft.Text("Stock Disponible: 0", size=16, weight=ft.FontWeight.BOLD)
     lbl_subtotal_producto = ft.Text("Subtotal Producto: $0.00", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
     
+    # Tabla de productos en venta
     tabla_productos_venta = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text("Cód. Artículo")),
@@ -56,77 +96,186 @@ def vista_ventas(page: ft.Page):
         border=ft.border.all(1, ft.Colors.BLUE_GREY_300),
     )
 
+    # Total y mensajes
     lbl_total_venta = ft.Text("Total de Venta: $0.00", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
     mensaje = ft.Text("", color="green", size=16)
 
+    # Botones
+    btn_buscar_cliente = ft.ElevatedButton(
+        text="Buscar Cliente",
+        icon=ft.Icons.SEARCH,
+        height=50,
+        on_click=lambda e: buscar_cliente(e)
+    )
+    
     btn_buscar_producto = ft.ElevatedButton(
         text="Buscar",
         icon=ft.Icons.SEARCH, 
         height=50,
-        disabled=True 
+        on_click=lambda e: buscar_producto_por_codigo(e, update_subtotal=True)
     )
+    
     btn_agregar_producto = ft.ElevatedButton(
         text="Agregar",
         icon=ft.Icons.ADD_SHOPPING_CART, 
         height=50,
-        disabled=True 
+        on_click=lambda e: agregar_producto_a_venta(e)
     )
+    
     btn_finalizar_venta = ft.ElevatedButton(
         text="Finalizar Venta",
         icon=ft.Icons.CHECK_CIRCLE, 
         style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_400, color=ft.Colors.WHITE),
-        disabled=True 
+        on_click=lambda e: finalizar_venta(e)
     )
 
     # --- Funciones de Lógica ---
-    # Definir las funciones de lógica ANTES de asignarlas a los eventos de los componentes UI
+    def cargar_metodos_pago():
+        """Carga los métodos de pago desde la base de datos"""
+        conn = None
+        try:
+            conn = conectar_db()
+            if not conn: return
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT idmetodo_pago, nombre_del_pago FROM metodo_pago")
+            global metodos_pago
+            metodos_pago = cursor.fetchall()
+            
+            dd_metodo_pago.options.clear()
+            for metodo in metodos_pago:
+                dd_metodo_pago.options.append(
+                    ft.dropdown.Option(
+                        key=str(metodo['idmetodo_pago']),
+                        text=metodo['nombre_del_pago']
+                    )
+                )
+            page.update()
+            
+        except mysql.connector.Error as err:
+            mensaje.value = f"Error al cargar métodos de pago: {err}"
+            mensaje.color = "red"
+            page.update()
+        finally:
+            if conn and conn.is_connected():
+                cursor.close()
+                conn.close()
 
-    def toggle_sale_buttons():
-        is_id_venta_entered = bool(txt_id_ventas.value)
-        btn_buscar_producto.disabled = not is_id_venta_entered
-        btn_agregar_producto.disabled = not is_id_venta_entered
-        btn_finalizar_venta.disabled = not is_id_venta_entered
-        # Deshabilitar el campo ID Venta una vez que se ha ingresado un valor
-        txt_id_ventas.disabled = is_id_venta_entered and txt_id_ventas.value != ""
-        page.update()
+    def buscar_cliente(e):
+        """Busca un cliente por ID y muestra su información"""
+        id_cliente = txt_id_cliente.value
+        if not id_cliente:
+            mensaje.value = "Ingresa un ID de cliente"
+            mensaje.color = "red"
+            page.update()
+            return
+        
+        conn = None
+        try:
+            conn = conectar_db()
+            if not conn: return
+            cursor = conn.cursor(dictionary=True)
+            
+            # Buscar información básica del cliente
+            cursor.execute("""
+                SELECT nombre, telefono 
+                FROM Cliente 
+                WHERE idCliente = %s
+            """, (id_cliente,))
+            cliente = cursor.fetchone()
+            
+            if not cliente:
+                limpiar_info_cliente()
+                mensaje.value = "Cliente no encontrado"
+                mensaje.color = "red"
+                page.update()
+                return
+            
+            # Buscar información de membresía
+            cursor.execute("""
+                SELECT codigo, tipo_membresia 
+                FROM Membresia 
+                WHERE idCliente = %s
+                ORDER BY fecha_vigencia DESC
+                LIMIT 1
+            """, (id_cliente,))
+            membresia = cursor.fetchone()
+            
+            # Actualizar la UI con la información del cliente
+            lbl_nombre_cliente.value = f"Nombre: {cliente['nombre']}"
+            lbl_telefono_cliente.value = f"Teléfono: {cliente['telefono']}"
+            
+            if membresia:
+                lbl_membresia_cliente.value = f"Membresía: {membresia['codigo']}"
+                lbl_tipo_membresia.value = f"Tipo: {membresia['tipo_membresia']}"
+            else:
+                lbl_membresia_cliente.value = "Membresía: Sin membresía activa"
+                lbl_tipo_membresia.value = "Tipo: -"
+            
+            mensaje.value = "Cliente encontrado"
+            mensaje.color = "green"
+            cliente_info.update({
+                'id': id_cliente,
+                'nombre': cliente['nombre'],
+                'telefono': cliente['telefono'],
+                'membresia': membresia['codigo'] if membresia else None,
+                'tipo_membresia': membresia['tipo_membresia'] if membresia else None
+            })
+            
+        except mysql.connector.Error as err:
+            mensaje.value = f"Error al buscar cliente: {err}"
+            mensaje.color = "red"
+        finally:
+            if conn and conn.is_connected():
+                cursor.close()
+                conn.close()
+            page.update()
+
+    def limpiar_info_cliente():
+        """Limpia la información del cliente mostrada"""
+        lbl_nombre_cliente.value = "Nombre: "
+        lbl_telefono_cliente.value = "Teléfono: "
+        lbl_membresia_cliente.value = "Membresía: "
+        lbl_tipo_membresia.value = "Tipo: "
+        cliente_info.clear()
 
     def limpiar_campos_producto():
+        """Limpia los campos de entrada de producto y las etiquetas de visualización."""
         txt_codigo_articulo.value = ""
-        txt_cantidad.value = ""
+        txt_cantidad.value = "1"  # Resetear a 1 en lugar de vacío
         lbl_nombre_producto.value = "Producto: "
         lbl_precio_unitario.value = "Precio Unitario: $0.00"
         lbl_stock_disponible.value = "Stock Disponible: 0"
         lbl_subtotal_producto.value = "Subtotal Producto: $0.00"
-        current_product_details.clear() # Limpiar detalles del producto almacenados
+        current_product_details.clear()
         page.update()
 
     def _on_load_view():
-        txt_fecha_venta.value = datetime.date.today().strftime("%Y-%m-%d")
+        """Inicializa la vista cuando se carga o se reinicia."""
         lbl_total_venta.value = "Total de Venta: $0.00"
         limpiar_campos_producto()
+        limpiar_info_cliente()
         productos_en_venta.clear()
         tabla_productos_venta.rows.clear()
         mensaje.value = ""
-        current_product_details.clear() # Limpiar detalles del producto
-        toggle_sale_buttons() 
+        current_product_details.clear()
+        txt_id_cliente.value = ""
+        txt_id_empleado.value = ""
+        dd_metodo_pago.value = None
+        cargar_metodos_pago()
         page.update()
 
     def limpiar_campos_venta():
-        txt_id_ventas.value = ""
-        txt_id_cliente.value = ""
-        txt_id_empleado.value = ""
-        txt_id_metodo_pago.value = ""
-        # Volver a habilitar el campo id_ventas después de limpiar
-        txt_id_ventas.disabled = False 
-        _on_load_view() # Reinicia la fecha y la tabla de productos, y vuelve a deshabilitar los botones
-        page.update()
+        """Limpia todos los campos principales de venta y reinicia los detalles del producto."""
+        _on_load_view()
 
     def calcular_total_venta():
+        """Calcula y actualiza el monto total de la venta."""
         total = sum(item['subtotal'] for item in productos_en_venta)
         lbl_total_venta.value = f"Total de Venta: ${total:.2f}"
         page.update()
 
     def _on_cantidad_change(e):
+        """Actualiza el subtotal del producto cuando cambia la entrada de cantidad."""
         try:
             cantidad = int(txt_cantidad.value) if txt_cantidad.value else 0
             if current_product_details and current_product_details.get('precio'):
@@ -139,6 +288,7 @@ def vista_ventas(page: ft.Page):
         page.update()
 
     def buscar_producto_por_codigo(e, update_subtotal=False):
+        """Busca un producto por código de barras y actualiza las etiquetas de información."""
         codigo = txt_codigo_articulo.value
         if not codigo:
             lbl_nombre_producto.value = "Producto: "
@@ -147,7 +297,7 @@ def vista_ventas(page: ft.Page):
             lbl_subtotal_producto.value = "Subtotal Producto: $0.00"
             mensaje.value = "Ingresa un código de barras."
             mensaje.color = "red"
-            current_product_details.clear() # Limpiar detalles del producto
+            current_product_details.clear()
             page.update()
             return
         
@@ -155,7 +305,7 @@ def vista_ventas(page: ft.Page):
         try:
             conn = conectar_db()
             if not conn: return
-            cursor = conn.cursor(dictionary=True) # Retorna filas como diccionarios
+            cursor = conn.cursor(dictionary=True)
             cursor.execute("SELECT codigo_articulo, nombre, precio, existencia FROM articulo WHERE codigo_articulo = %s", (codigo,))
             articulo = cursor.fetchone()
 
@@ -163,18 +313,17 @@ def vista_ventas(page: ft.Page):
                 lbl_nombre_producto.value = f"Producto: {articulo['nombre']}"
                 lbl_precio_unitario.value = f"Precio Unitario: ${articulo['precio']:.2f}"
                 lbl_stock_disponible.value = f"Stock Disponible: {articulo['existencia']}"
-                mensaje.value = "" # Limpiar mensaje de error
+                mensaje.value = ""
                 
-                # Almacenar detalles recuperados para uso futuro (ej. cálculo de subtotal)
                 current_product_details.update({
-                    'codigo': articulo['codigo_articulo'], 
+                    'codigo': articulo['codigo_articulo'],
                     'nombre': articulo['nombre'],
                     'precio': articulo['precio'],
                     'existencia': articulo['existencia']
                 })
 
-                if update_subtotal: 
-                    _on_cantidad_change(None) # Recalcular subtotal basándose en la cantidad actual
+                if update_subtotal:
+                    _on_cantidad_change(None)
             else:
                 lbl_nombre_producto.value = "Producto: No encontrado"
                 lbl_precio_unitario.value = "Precio Unitario: $0.00"
@@ -182,7 +331,7 @@ def vista_ventas(page: ft.Page):
                 lbl_subtotal_producto.value = "Subtotal Producto: $0.00"
                 mensaje.value = "Artículo no encontrado."
                 mensaje.color = "red"
-                current_product_details.clear() # Limpiar detalles del producto
+                current_product_details.clear()
             page.update()
 
         except mysql.connector.Error as err:
@@ -200,8 +349,8 @@ def vista_ventas(page: ft.Page):
 
     def agregar_producto_a_venta(e):
         """Añade un producto a la lista de la venta y actualiza la UI."""
-        if not txt_id_ventas.value:
-            mensaje.value = "Primero ingresa el ID de Venta."
+        if not txt_id_cliente.value:
+            mensaje.value = "Primero ingresa el ID del Cliente."
             mensaje.color = "red"
             page.update()
             return
@@ -227,14 +376,14 @@ def vista_ventas(page: ft.Page):
             mensaje.color = "red"
             page.update()
             return
+        
         articulo_info = current_product_details
         if not articulo_info or articulo_info.get('codigo') != codigo:
-            # Si los detalles no están actualizados o no coinciden, volver a buscarlos
             conn = conectar_db()
             if not conn: return
             cursor = conn.cursor(dictionary=True)
             cursor.execute("SELECT codigo_articulo, nombre, precio, existencia FROM articulo WHERE codigo_articulo = %s", (codigo,))
-            articulo_info_from_db = cursor.fetchone() # Usar un nombre diferente para evitar confusión
+            articulo_info_from_db = cursor.fetchone()
 
             if conn and conn.is_connected():
                 cursor.close()
@@ -245,6 +394,7 @@ def vista_ventas(page: ft.Page):
                 mensaje.color = "red"
                 page.update()
                 return
+            
             articulo_info = {
                 'codigo': articulo_info_from_db['codigo_articulo'],
                 'nombre': articulo_info_from_db['nombre'],
@@ -253,8 +403,6 @@ def vista_ventas(page: ft.Page):
             }
             current_product_details.update(articulo_info)
 
-
-        # Verificar stock
         if cantidad > articulo_info['existencia']:
             mensaje.value = f"No hay suficiente stock. Disponible: {articulo_info['existencia']}"
             mensaje.color = "red"
@@ -262,6 +410,7 @@ def vista_ventas(page: ft.Page):
             return
 
         subtotal_item = cantidad * articulo_info['precio']
+        
         producto_existente = next((p for p in productos_en_venta if p['codigo'] == codigo), None)
 
         if producto_existente:
@@ -284,19 +433,19 @@ def vista_ventas(page: ft.Page):
             
         actualizar_tabla_productos_venta()
         calcular_total_venta()
-        limpiar_campos_producto() # Limpiar entrada de producto para el siguiente artículo
-        txt_codigo_articulo.focus() # Enfocar para el siguiente escaneo de código de barras
+        limpiar_campos_producto()
+        txt_codigo_articulo.focus()
         mensaje.value = "Producto agregado."
         mensaje.color = "green"
         page.update()
 
     def eliminar_producto_de_venta(e):
         """Elimina un producto de la lista de la venta."""
-        codigo_a_eliminar = e.control.data # El 'data' del botón contiene el código del producto
+        codigo_a_eliminar = e.control.data
         initial_len = len(productos_en_venta)
         productos_en_venta[:] = [p for p in productos_en_venta if p['codigo'] != codigo_a_eliminar]
         
-        if len(productos_en_venta) < initial_len: # Verificar si se eliminó algo
+        if len(productos_en_venta) < initial_len:
             actualizar_tabla_productos_venta()
             calcular_total_venta()
             mensaje.value = f"Producto {codigo_a_eliminar} eliminado de la venta."
@@ -323,20 +472,18 @@ def vista_ventas(page: ft.Page):
                             icon_color=ft.Colors.RED_500,
                             tooltip="Eliminar producto de la venta",
                             on_click=eliminar_producto_de_venta,
-                            data=item['codigo'] # Pasa el código para identificar el artículo a eliminar
+                            data=item['codigo']
                         )),
                     ]
                 )
             )
-        page.update() # Actualizar la tabla en la UI
+        page.update()
 
     def finalizar_venta(e):
         """Finaliza la venta, guarda en la DB y limpia la vista."""
-        id_venta = txt_id_ventas.value
         id_cliente = txt_id_cliente.value
         id_empleado = txt_id_empleado.value
-        id_metodo_pago = txt_id_metodo_pago.value
-        # Obtener la fecha actual al momento de finalizar la venta para asegurar el formato correcto
+        metodo_pago_id = dd_metodo_pago.value
         fecha_venta = datetime.date.today().strftime("%Y-%m-%d") 
         
         try:
@@ -347,8 +494,8 @@ def vista_ventas(page: ft.Page):
             page.update()
             return
 
-        if not id_venta or not id_cliente or not id_empleado or not id_metodo_pago:
-            mensaje.value = "Faltan datos de la venta (ID Venta, Cliente, Empleado, Método Pago)."
+        if not id_cliente or not id_empleado or not metodo_pago_id:
+            mensaje.value = "Faltan datos de la venta (Cliente, Empleado, Método Pago)."
             mensaje.color = "red"
             page.update()
             return
@@ -364,42 +511,49 @@ def vista_ventas(page: ft.Page):
             conn = conectar_db()
             if not conn: return
             cursor = conn.cursor()
-            conn.start_transaction() # Iniciar transacción para atomicidad
+            conn.start_transaction()
 
-            # 1. Insertar en la tabla 'ventas'
+            # 1. Insertar en la tabla 'ventas' (el ID es autoincrement)
             sql_venta = """
-                INSERT INTO ventas (idVentas, fecha, idCliente, idempleados, idmetodo_pago, importe)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO ventas (fecha, idCliente, idempleados, idmetodo_pago, importe)
+                VALUES (%s, %s, %s, %s, %s)
             """
-            cursor.execute(sql_venta, (id_venta, fecha_venta, id_cliente, id_empleado, id_metodo_pago, total_venta))
+            cursor.execute(sql_venta, (fecha_venta, id_cliente, id_empleado, metodo_pago_id, total_venta))
+            
+            # Obtener el ID de la venta recién insertada
+            venta_id = cursor.lastrowid
 
-            # 2. Insertar en la tabla 'descventa' (detalle de la venta) y actualizar existencia en 'articulo'
+            # 2. Insertar en la tabla 'descventa' (ahora incluyendo el precio) y actualizar stock
             sql_descventa = """
-                INSERT INTO descventa (idventas, codigo_articulo, cantidad, total)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO descventa (idventas, codigo_articulo, cantidad, precio, total)
+                VALUES (%s, %s, %s, %s, %s)
             """
             sql_actualizar_stock = """
                 UPDATE articulo SET existencia = existencia - %s WHERE codigo_articulo = %s
             """
             for item in productos_en_venta:
-                cursor.execute(sql_descventa, (id_venta, item['codigo'], item['cantidad'], item['subtotal']))
+                cursor.execute(sql_descventa, (
+                    venta_id, 
+                    item['codigo'], 
+                    item['cantidad'], 
+                    item['precio_unitario'],  # Precio unitario del artículo
+                    item['subtotal']          # Total (precio * cantidad)
+                ))
                 cursor.execute(sql_actualizar_stock, (item['cantidad'], item['codigo'])) 
 
-            conn.commit() # Confirmar todas las operaciones
-            mensaje.value = "Venta finalizada y guardada correctamente."
+            conn.commit()
+            mensaje.value = f"Venta #{venta_id} finalizada y guardada correctamente."
             mensaje.color = "green"
-            limpiar_campos_venta() # Limpiar toda la interfaz después de la venta exitosa
+            limpiar_campos_venta()
         
         except mysql.connector.Error as err:
-            conn.rollback() # Deshacer si hay algún error
-            if err.errno == 1062: # Entrada duplicada para la clave primaria 'idVentas' (o la clave compuesta en descventa)
-                mensaje.value = f"Error: La venta con ID {id_venta} o uno de sus productos ya existe. Intenta con otro ID de venta."
-            else:
-                mensaje.value = f"Error de base de datos al finalizar venta: {err}"
+            if conn and conn.is_connected():
+                conn.rollback()
+            mensaje.value = f"Error de base de datos al finalizar venta: {err}"
             mensaje.color = "red"
         except Exception as ex:
             if conn and conn.is_connected():
-                conn.rollback() # Deshacer si hay algún error inesperado
+                conn.rollback()
             mensaje.value = f"Error inesperado al finalizar venta: {str(ex)}"
             mensaje.color = "red"
         finally:
@@ -408,54 +562,71 @@ def vista_ventas(page: ft.Page):
                 conn.close()
             page.update()
 
-    # --- Asignación de Eventos después de la definición de funciones y componentes ---
-    txt_id_ventas.on_change = lambda e: toggle_sale_buttons()
-    txt_id_ventas.input_filter = ft.InputFilter(allow=True, regex_string=r"^[0-9]*$", replacement_string="")
+    # --- Configuración inicial ---
+    _on_load_view()
 
-    txt_id_cliente.input_filter = ft.InputFilter(allow=True, regex_string=r"^[0-9]*$", replacement_string="")
-    txt_id_empleado.input_filter = ft.InputFilter(allow=True, regex_string=r"^[0-9]*$", replacement_string="")
-    txt_id_metodo_pago.input_filter = ft.InputFilter(allow=True, regex_string=r"^[0-9]*$", replacement_string="")
-
+    # --- Asignación de Eventos ---
     txt_codigo_articulo.on_change = lambda e: buscar_producto_por_codigo(e, update_subtotal=True)
-    txt_codigo_articulo.on_submit = lambda e: agregar_producto_a_venta(e) # Agrega producto al presionar Enter en código de barras
+    txt_codigo_articulo.on_submit = lambda e: agregar_producto_a_venta(e)
 
-    txt_cantidad.input_filter = ft.InputFilter(allow=True, regex_string=r"^[0-9]*$", replacement_string="")
     txt_cantidad.on_change = lambda e: _on_cantidad_change(e)
-    txt_cantidad.on_submit = lambda e: agregar_producto_a_venta(e) # Agrega producto al presionar Enter en cantidad
+    txt_cantidad.on_submit = lambda e: agregar_producto_a_venta(e)
 
-    btn_buscar_producto.on_click = lambda e: buscar_producto_por_codigo(e, update_subtotal=True)
-    btn_agregar_producto.on_click = agregar_producto_a_venta
-    btn_finalizar_venta.on_click = finalizar_venta
-
+    # --- Diseño de la UI ---
     # Contenedor para el scroll de la tabla de productos de la venta
     tabla_productos_venta_scroll_container = ft.Column(
         [tabla_productos_venta],
         scroll=ft.ScrollMode.ADAPTIVE,
-        height=300, # Altura fija para el área de la tabla
+        height=300,
         expand=True,
     )
 
-    def on_view_change_handler(e):
-        if e.route == "/ventas":
-            _on_load_view()      
-    page.on_view_change = on_view_change_handler
-    
-    # --- Diseño de la UI ---
+    # Sección de información del cliente
+    cliente_info_container = ft.Column(
+        [
+            ft.Row([txt_id_cliente, btn_buscar_cliente]),
+            ft.Row([lbl_nombre_cliente, lbl_telefono_cliente]),
+            ft.Row([lbl_membresia_cliente, lbl_tipo_membresia])
+        ],
+        spacing=10
+    )
+
+    # Sección de información del producto
+    producto_info_container = ft.Row(
+        [
+            lbl_nombre_producto,
+            lbl_precio_unitario,
+            lbl_stock_disponible,
+            lbl_subtotal_producto,
+        ],
+        wrap=True,
+        alignment=ft.MainAxisAlignment.SPACE_AROUND,
+    )
+
+    # Sección principal de la vista
     return ft.Column(
         [
             ft.Text("Registro de Ventas", size=28, weight=ft.FontWeight.BOLD),
-            ft.Row(
+            
+            # Sección de datos de la venta
+            ft.Column(
                 [
-                    txt_id_ventas,
-                    txt_fecha_venta,
-                    txt_id_cliente,
-                    txt_id_empleado,
-                    txt_id_metodo_pago,
+                    ft.Row(
+                        [
+                            cliente_info_container,
+                            txt_id_empleado,
+                            dd_metodo_pago,
+                        ],
+                        wrap=True,
+                        alignment=ft.MainAxisAlignment.CENTER,
+                    ),
                 ],
-                wrap=True, # Permite que los campos se envuelvan si la pantalla es pequeña
-                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=10
             ),
+            
             ft.Divider(),
+            
+            # Sección para agregar productos
             ft.Text("Agregar Productos", size=22, weight=ft.FontWeight.BOLD),
             ft.Row(
                 [
@@ -467,33 +638,29 @@ def vista_ventas(page: ft.Page):
                 wrap=True,
                 alignment=ft.MainAxisAlignment.CENTER,
             ),
-            ft.Row(
-                [
-                    lbl_nombre_producto,
-                    lbl_precio_unitario,
-                    lbl_stock_disponible,
-                    lbl_subtotal_producto,
-                ],
-                wrap=True,
-                alignment=ft.MainAxisAlignment.SPACE_AROUND,
-            ),
+            producto_info_container,
+            
             ft.Divider(),
+            
+            # Sección de detalle de venta
             ft.Text("Detalle de Venta", size=22, weight=ft.FontWeight.BOLD),
-            tabla_productos_venta_scroll_container, # Contenedor para la tabla con scroll
+            tabla_productos_venta_scroll_container,
+            
+            # Total y botón finalizar
             ft.Row(
                 [
                     lbl_total_venta,
                     btn_finalizar_venta, 
                 ],
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN, # Total a la izquierda, botón a la derecha
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 expand=True,
             ),
             mensaje,
         ],
         spacing=20,
-        alignment=ft.MainAxisAlignment.START, # Empieza desde arriba
+        alignment=ft.MainAxisAlignment.START,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        scroll=ft.ScrollMode.ADAPTIVE, # Permite scroll a toda la vista si es necesario
+        scroll=ft.ScrollMode.ADAPTIVE,
         expand=True,
     )
