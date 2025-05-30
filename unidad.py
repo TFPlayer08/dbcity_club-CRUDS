@@ -37,29 +37,6 @@ def vista_unidad(page):
         txt_id_unidad.value = ""
         txt_nombre.value = ""
 
-    def agrega_metodo(e):
-        try:
-            id = int(txt_id_unidad.value)
-            conn = conectar_db()
-            cursor = conn.cursor()
-            sql = "INSERT INTO unidad (idUnidad, nombre) VALUES (%s, %s)"
-            cursor.execute(sql, (id, txt_nombre.value))
-            conn.commit()
-            mensaje.value = "Unidad agregada correctamente."
-            mensaje.color = "green"
-            limpiar_campos()
-        except ValueError:
-            mensaje.value = "El id debe ser un número entero."
-            mensaje.color = "red"
-        except Exception as ex:
-            mensaje.value = f"Error: {str(ex)}"
-            mensaje.color = "red"
-        finally:
-            if 'conn' in locals() and conn.is_connected():
-                cursor.close()
-                conn.close()
-            mensaje.update()
-
     def consultar(e):
         try:
             conn = conectar_db()
@@ -88,24 +65,54 @@ def vista_unidad(page):
             mensaje.update()
             tabla_resultado.update()
 
+    def agrega_metodo(e):
+        try:
+            if not txt_id_unidad.value.strip():
+                raise ValueError("El campo ID no puede estar vacío.")
+            id = int(txt_id_unidad.value)
+            conn = conectar_db()
+            cursor = conn.cursor()
+            sql = "INSERT INTO unidad (idUnidad, nombre) VALUES (%s, %s)"
+            cursor.execute(sql, (id, txt_nombre.value))
+            conn.commit()
+            mensaje.value = "Unidad agregada correctamente."
+            mensaje.color = "green"
+            limpiar_campos()
+            consultar(None)
+        except ValueError as ve:
+            mensaje.value = str(ve)
+            mensaje.color = "red"
+        except Exception as ex:
+            mensaje.value = f"Error: {str(ex)}"
+            mensaje.color = "red"
+        finally:
+            if 'conn' in locals() and conn.is_connected():
+                cursor.close()
+                conn.close()
+            mensaje.update()
+
     def eliminar(e):
         try:
+            if not txt_id_unidad.value.strip():
+                raise ValueError("El campo ID no puede estar vacío.")
             id = int(txt_id_unidad.value)
-            ids_tabla = [int(row.cells[0].content.value) for row in tabla_resultado.rows]
-            if id not in ids_tabla:
-                mensaje.value = "El ID no existe en la tabla."
+            conn = conectar_db()
+            cursor = conn.cursor()
+            cursor.execute("SELECT idUnidad FROM unidad WHERE idUnidad = %s", (id,))
+            if not cursor.fetchone():
+                mensaje.value = "El ID no existe en la base de datos."
                 mensaje.color = "red"
                 mensaje.update()
                 return
-            conn = conectar_db()
-            cursor = conn.cursor()
+
             cursor.execute("DELETE FROM unidad WHERE idUnidad = %s", (id,))
             conn.commit()
             mensaje.value = "Unidad eliminada correctamente."
             mensaje.color = "green"
             limpiar_campos()
-        except ValueError:
-            mensaje.value = "El id debe ser un número entero."
+            consultar(None)
+        except ValueError as ve:
+            mensaje.value = str(ve)
             mensaje.color = "red"
         except Exception as ex:
             mensaje.value = f"Error al eliminar: {str(ex)}"
@@ -118,27 +125,32 @@ def vista_unidad(page):
 
     def modificar(e):
         try:
+            if not txt_id_unidad.value.strip():
+                raise ValueError("El campo ID no puede estar vacío.")
             id = int(txt_id_unidad.value)
-            if txt_nombre.value == "":
+            if txt_nombre.value.strip() == "":
                 mensaje.value = "El campo nombre no puede estar vacío."
                 mensaje.color = "red"
                 mensaje.update()
                 return
-            ids_tabla = [int(row.cells[0].content.value) for row in tabla_resultado.rows]
-            if id not in ids_tabla:
-                mensaje.value = "El ID no existe en la tabla."
+
+            conn = conectar_db()
+            cursor = conn.cursor()
+            cursor.execute("SELECT idUnidad FROM unidad WHERE idUnidad = %s", (id,))
+            if not cursor.fetchone():
+                mensaje.value = "El ID no existe en la base de datos."
                 mensaje.color = "red"
                 mensaje.update()
                 return
-            conn = conectar_db()
-            cursor = conn.cursor()
+
             cursor.execute("UPDATE unidad SET nombre = %s WHERE idUnidad = %s", (txt_nombre.value, id))
             conn.commit()
             mensaje.value = "Unidad modificada correctamente."
             mensaje.color = "green"
             limpiar_campos()
-        except ValueError:
-            mensaje.value = "El id debe ser un número entero."
+            consultar(None)
+        except ValueError as ve:
+            mensaje.value = str(ve)
             mensaje.color = "red"
         except Exception as ex:
             mensaje.value = f"Error al modificar: {str(ex)}"
@@ -160,7 +172,8 @@ def vista_unidad(page):
         spacing=20,
     )
 
-    return ft.Column(
+    # Contenedor principal
+    vista = ft.Column(
         [
             ft.Text("Gestión de Unidades", size=24, weight=ft.FontWeight.BOLD),
             txt_id_unidad,
@@ -173,3 +186,11 @@ def vista_unidad(page):
         alignment=ft.MainAxisAlignment.CENTER,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
     )
+
+    # Ejecutar consulta al cargar la vista
+    def on_mount(e):
+        consultar(None)
+
+    vista.on_mount = on_mount
+
+    return vista

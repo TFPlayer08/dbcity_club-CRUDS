@@ -1,0 +1,16 @@
+Requerimientos para este proyecto:
+
+Primero tener la version recomendable Windows 10 o 11
+Un Editor de Código como VS Code, PyCharm, Thonny, etc.
+
+1. Tener la version Python 3.8 a 3.12 como recomendacion
+2. Abrir un entorno virtual, verifica si tu powershell te deja habilitarlo
+3. Tener instalado la libreria Flet para abrir la interfaz por medio de main.py,
+    3.1 Tener la version como minimo 0.12.0, para ver la version actual es con pip show Flet
+    3.2 Para actualizar la version es con pip install --upgrade flet
+4. Tener la libreria my-sql-connector-python
+5. Asegurate tener la base de datos dbcity_club
+6. Asegurar bien la conexion a tu mysql tipo:
+    Host: localhost
+    usuario: root
+    contraseña: pones la contraseña 
